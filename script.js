@@ -1,90 +1,102 @@
+const pageCache = {};
+
 document.addEventListener('DOMContentLoaded', () => {
+    console.log('Router Loaded. Current Path:', window.location.pathname);
+    
+    updateActiveNav(window.location.pathname);
+    prefetchPages();
+
     document.body.addEventListener('click', e => {
         const link = e.target.closest('.spa-link');
         if (link) {
-            e.preventDefault(); 
-            const url = link.getAttribute('href');
-            navigateTo(url);
+            e.preventDefault();
+            const href = link.getAttribute('href');
+            console.log('Link Clicked:', href);
+            navigateTo(href);
         }
     });
     window.addEventListener('popstate', () => {
-        loadContent(window.location.pathname);
+        console.log('Popstate Event:', window.location.pathname);
+        renderPage(window.location.pathname);
     });
-    attachSpecificPageLogic();
 });
 
-function navigateTo(url) {
-    history.pushState(null, null, url); 
-    loadContent(url);
-}
-
-async function loadContent(url) {
-    const mainContent = document.getElementById('main-content');
-    mainContent.style.opacity = '0.5';
-
-    try {
-        const response = await fetch(url);
-        if (!response.ok) throw new Error('Page not found');
-        const text = await response.text();
-        const parser = new DOMParser();
-        const doc = parser.parseFromString(text, 'text/html');
-        const newContent = doc.getElementById('main-content').innerHTML;
-        mainContent.innerHTML = newContent;
-        document.title = doc.title;
-        updateActiveNav(url);
-        attachSpecificPageLogic();
-    } catch (error) {
-        console.error('Error loading page:', error);
-        mainContent.innerHTML = `<div class="container py-5 text-center"><h3>Error loading content.</h3></div>`;
-    } finally {
-        mainContent.style.opacity = '1';
+async function prefetchPages() {
+    const links = document.querySelectorAll('.spa-link');
+    for (const link of links) {
+        const url = link.getAttribute('href');
+        if (!pageCache[url]) {
+            const absoluteUrl = new URL(url, window.location.origin).href;
+            try {
+                const resp = await fetch(absoluteUrl);
+                if (resp.ok) {
+                    const text = await resp.text();
+                    pageCache[url] = extractContent(text); 
+                    console.log(`Cached: ${url}`);
+                }
+            } catch (err) { console.warn(`Prefetch failed for ${url}`, err); }
+        }
     }
 }
 
-function updateActiveNav(url) {
-    const path = url.split('/').pop() || 'index.html';
+function navigateTo(url) {
+    history.pushState(null, null, url);
+    renderPage(url);
+}
+
+async function renderPage(url) {
+    const container = document.getElementById('router-view');
+    const relativeUrl = url.replace(window.location.origin, '').replace(/^\//, '') || 'index.html';
+    updateActiveNav(relativeUrl);
+    container.classList.add('fade-out');
+
+    setTimeout(async () => {
+        let content = pageCache[relativeUrl] || pageCache[url] || pageCache['/' + relativeUrl];
+
+        if (!content) {
+            console.log(`Not in cache, fetching: ${relativeUrl}`);
+            try {
+                const fetchTarget = relativeUrl === '' ? 'index.html' : relativeUrl;
+                const absoluteTarget = new URL(fetchTarget, window.location.origin).href;
+                const resp = await fetch(absoluteTarget);
+                if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+                const text = await resp.text();
+                content = extractContent(text);
+                pageCache[relativeUrl] = content;
+            } catch (err) {
+                console.error('Load failed:', err);
+                content = `<div class="container py-5 text-center">
+                    <h3>Page not found</h3>
+                    <p>Tried to load: ${relativeUrl}</p>
+                    <a href="index.html" class="btn btn-primary spa-link">Go Home</a>
+                </div>`;
+            }
+        }
+
+        container.innerHTML = content;
+        window.scrollTo(0, 0);
+        container.classList.remove('fade-out');
+        const form = document.getElementById('contact-form');
+        if(form) { }
+        
+    }, 200);
+}
+
+function extractContent(htmlString) {
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(htmlString, 'text/html');
+    const content = doc.getElementById('router-view');
+    return content ? content.innerHTML : '<h1>Content not found in fetched file</h1>';
+}
+
+function updateActiveNav(path) {
+    const cleanPath = path.replace(/^\//, '') || 'index.html';
+    
     document.querySelectorAll('.nav-link').forEach(link => {
         link.classList.remove('active');
-        if (link.getAttribute('href') === path) {
+        const linkHref = link.getAttribute('href');
+        if (linkHref === cleanPath || linkHref === '/' + cleanPath) {
             link.classList.add('active');
         }
     });
-}
-
-function attachSpecificPageLogic() {
-    const form = document.getElementById('contact-form');
-    if (form) {
-        form.addEventListener('submit', handleFormSubmit);
-    }
-}
-
-async function handleFormSubmit(event) {
-    event.preventDefault();
-    const form = event.target;
-    const status = document.getElementById('form-status');
-    const data = new FormData(form);
-
-    try {
-        const response = await fetch(form.action, {
-            method: form.method,
-            body: data,
-            headers: {
-                'Accept': 'application/json'
-            }
-        });
-
-        if (response.ok) {
-            status.innerHTML = '<div class="alert alert-success mt-3">Message sent successfully!</div>';
-            form.reset();
-        } else {
-            const data = await response.json();
-            if (Object.hasOwnProperty.call(data, 'errors')) {
-                status.innerHTML = `<div class="alert alert-danger mt-3">${data["errors"].map(error => error["message"]).join(", ")}</div>`;
-            } else {
-                status.innerHTML = '<div class="alert alert-danger mt-3">Oops! There was a problem submitting your form.</div>';
-            }
-        }
-    } catch (error) {
-        status.innerHTML = '<div class="alert alert-danger mt-3">Oops! There was a problem submitting your form.</div>';
-    }
 }
