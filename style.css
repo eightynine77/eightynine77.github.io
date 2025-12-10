@@ -1,6 +1,6 @@
 :root {
-    --bg-dark: #698CB1;
-    --bg-card: #6E93B8;
+    --bg-dark: #6283a7;
+    --bg-card: #6e93b8;
     --primary: #9AD9CF;
     --secondary: #93C387;
     --text-main: #ffffff;
@@ -9,7 +9,7 @@
 }
 
 body {
-    background-color: var(--bg-dark);
+    background-color: var(--bg-card);
     color: var(--text-main);
     font-family: 'Segoe UI', sans-serif;
     overflow-x: hidden;
@@ -26,7 +26,7 @@ body {
 
 .navbar-brand {
     font-weight: 700;
-    color: var(--primary) !important;
+    color: var(--text-main) !important;
 }
 
 .nav-link {
@@ -71,7 +71,8 @@ footer {
     padding: 2rem 0;
     border-top: 1px solid rgba(255,255,255,0.1);
     text-align: center;
-    color: var(--text-muted);
+    color: var(--text-main);
+    background-color: var(--bg-dark);
 }
 
 .btn-primary {
