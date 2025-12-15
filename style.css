@@ -22,6 +22,10 @@ body {
     color: var(--text-main);
 }
 
+.homepage-title-welcome{
+    color: var(--primary) !important;
+}
+
 .homepage-title {
     color: var(--text-muted);
 }
