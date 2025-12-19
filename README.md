@@ -1,4 +1,4 @@
 # jebbidan.github.io
 about me
 
-eightynine77.github.io
+the portfolio: https://eightynine77.github.io
